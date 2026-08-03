@@ -235,9 +235,9 @@ export function postInitAndCheckGenerationConfigValues(
     if (!config.logprobs) {
       throw new DependencyError("top_logprobs", "logprobs", true);
     }
-    // top_logprobs should be in range [0,5]
-    if (config.top_logprobs! < 0 || config.top_logprobs! > 5) {
-      throw new RangeError("top_logprobs", 0, 5, "Got " + config.top_logprobs);
+    // top_logprobs should be in range [0,25]
+    if (config.top_logprobs! < 0 || config.top_logprobs! > 25) {
+      throw new RangeError("top_logprobs", 0, 25, "Got " + config.top_logprobs);
     }
   }
   // If defined logprobs but not top_logprobs, simply make it 0
