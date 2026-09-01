@@ -26,6 +26,10 @@ module.exports = defineConfig([{
 
     languageOptions: {
         parser: tsParser,
+        globals: {
+            ...require("globals").node,
+            ...require("globals").browser,
+        },
     },
 
     plugins: {

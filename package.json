@@ -6,7 +6,7 @@
   "types": "lib/index.d.ts",
   "type": "module",
   "scripts": {
-    "build": "rollup -c && ./cleanup-index-js.sh",
+    "build": "rollup -c && node cleanup-index-js.js",
     "lint": "npx eslint ./src/ ./tests/ ./examples/ && npx prettier ./src/ ./tests/ ./examples/ --check",
     "test": "jest --coverage",
     "format": "prettier --write \"./src/\" \"./examples/\" \"./tests/\"",
