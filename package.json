@@ -1,6 +1,6 @@
 {
   "name": "@mlc-ai/web-llm",
-  "version": "0.2.84",
+  "version": "0.2.87",
   "description": "Hardware accelerated language model chats on browsers",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -9,6 +9,7 @@
     "build": "rollup -c && node cleanup-index-js.js",
     "lint": "npx eslint ./src/ ./tests/ ./examples/ && npx prettier ./src/ ./tests/ ./examples/ --check",
     "test": "jest --coverage",
+    "test:browser": "npm run build:browser-tests && playwright test --config tests/browser/playwright.config.mjs",
     "format": "prettier --write \"./src/\" \"./examples/\" \"./tests/\"",
     "prepare": "husky"
   },
@@ -29,10 +30,11 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@eslint/js": "^9.9.0",
-    "@mlc-ai/web-runtime": "^0.26.0-dev0",
+    "@mlc-ai/web-runtime": "0.28.0-dev1",
     "@mlc-ai/web-tokenizers": "^0.1.6",
     "@mlc-ai/web-xgrammar": "0.1.27",
     "@next/eslint-plugin-next": "^16.0.0",
+    "@playwright/test": "1.55.1",
     "@rollup/plugin-commonjs": "^29.0.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-typescript": "^12.3.0",

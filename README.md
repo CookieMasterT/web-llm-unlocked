@@ -184,7 +184,10 @@ Notes:
 
 After successfully initializing the engine, you can now invoke chat completions using OpenAI style chat APIs through the `engine.chat.completions` interface. For the full list of parameters and their descriptions, check [section below](#full-openai-compatibility) and [OpenAI API reference](https://platform.openai.com/docs/api-reference/chat/create).
 
-(Note: The `model` parameter is not supported and will be ignored here. Instead, call `CreateMLCEngine(model)` or `engine.reload(model)` instead as shown in the [Create MLCEngine](#create-mlcengine) above.)
+The `model` parameter selects an already loaded model by its `ModelRecord.model_id`.
+It is optional when one model is loaded and required when multiple models are loaded; unknown or unloaded IDs are rejected.
+Load models first with `CreateMLCEngine(...)` or `engine.reload(...)` as shown in [Create MLCEngine](#create-mlcengine).
+Passing `model` in a request does not load a model.
 
 ```typescript
 const messages = [
@@ -289,18 +292,14 @@ your application's offline experience.
 
 (Note, Service Worker's life cycle is managed by the browser and can be killed any time without notifying the webapp. `ServiceWorkerMLCEngine` will try to keep the service worker thread alive by periodically sending heartbeat events, but your application should also include proper error handling. Check `keepAliveMs` and `missedHeatbeat` in [`ServiceWorkerMLCEngine`](https://github.com/mlc-ai/web-llm/blob/main/src/service_worker.ts#L234) for more details.)
 
-We create a handler in the worker thread that communicates with the frontend while handling the requests.
+We create a handler in the worker thread that communicates with the frontend while handling the requests. Instantiate the handler at the top level of the worker script so its message listener is registered during initial script evaluation. Do not instantiate it from an `activate` or `message` listener: the browser can restart an already-active worker without dispatching another `activate` event.
 
 ```typescript
 // sw.ts
 import { ServiceWorkerMLCEngineHandler } from "@mlc-ai/web-llm";
 
-let handler: ServiceWorkerMLCEngineHandler;
-
-self.addEventListener("activate", function (event) {
-  handler = new ServiceWorkerMLCEngineHandler();
-  console.log("Service Worker is ready");
-});
+new ServiceWorkerMLCEngineHandler();
+console.log("Service Worker is ready");
 ```
 
 Then in the main logic, we register the service worker and create the engine using
@@ -457,7 +456,7 @@ npm install
 npm run build
 ```
 
-Then, to test the effects of your code change in an example, inside `examples/get-started/package.json`, change from `"@mlc-ai/web-llm": "^0.2.84"` to `"@mlc-ai/web-llm": ../..`.
+Then, to test the effects of your code change in an example, inside `examples/get-started/package.json`, change from `"@mlc-ai/web-llm": "^0.2.87"` to `"@mlc-ai/web-llm": ../..`.
 
 Then run:
 

@@ -25,6 +25,7 @@ export interface ConvTemplateConfig {
   system_prefix_token_ids?: Array<number>;
   stop_token_ids: Array<number>;
   add_role_after_system_message?: boolean;
+  render_empty_system_message?: boolean;
 }
 
 /**
@@ -141,6 +142,7 @@ export interface MLCEngineConfig {
  *
  * Note that all values are optional. If unspecified, we use whatever values in `ChatConfig`
  * initialized during `MLCEngine.reload()`.
+ * Values with numeric range checks also reject `NaN`.
  */
 export interface GenerationConfig {
   // Only used in MLC
@@ -172,27 +174,30 @@ export function postInitAndCheckGenerationConfigValues(
     return value !== undefined && value !== null;
   }
   if (
-    config.frequency_penalty &&
-    (config.frequency_penalty < -2.0 || config.frequency_penalty > 2.0)
+    _hasValue(config.frequency_penalty) &&
+    !(config.frequency_penalty! >= -2.0 && config.frequency_penalty! <= 2.0)
   ) {
     throw new RangeError("frequency_penalty", -2.0, 2.0);
   }
   if (
-    config.presence_penalty &&
-    (config.presence_penalty < -2.0 || config.presence_penalty > 2.0)
+    _hasValue(config.presence_penalty) &&
+    !(config.presence_penalty! >= -2.0 && config.presence_penalty! <= 2.0)
   ) {
     throw new RangeError("presence_penalty", -2.0, 2.0);
   }
-  if (_hasValue(config.repetition_penalty) && config.repetition_penalty! <= 0) {
+  if (
+    _hasValue(config.repetition_penalty) &&
+    !(config.repetition_penalty! > 0)
+  ) {
     throw new MinValueError("repetition_penalty", 0);
   }
-  if (_hasValue(config.max_tokens) && config.max_tokens! <= 0) {
+  if (_hasValue(config.max_tokens) && !(config.max_tokens! > 0)) {
     throw new MinValueError("max_tokens", 0);
   }
-  if ((_hasValue(config.top_p) && config.top_p! <= 0) || config.top_p! > 1) {
+  if (_hasValue(config.top_p) && !(config.top_p! > 0 && config.top_p! <= 1)) {
     throw new RangeError("top_p", 0, 1);
   }
-  if (_hasValue(config.temperature) && config.temperature! < 0) {
+  if (_hasValue(config.temperature) && !(config.temperature! >= 0)) {
     throw new NonNegativeError("temperature");
   }
   // If only one of frequency or presence penatly is set, make the other one 0.0
@@ -216,7 +221,7 @@ export function postInitAndCheckGenerationConfigValues(
   if (_hasValue(config.logit_bias)) {
     for (const tokenID in config.logit_bias) {
       const bias = config.logit_bias[tokenID];
-      if (bias > 100 || bias < -100) {
+      if (!(bias >= -100 && bias <= 100)) {
         throw new RangeError(
           "logit_bias",
           -100,
@@ -236,7 +241,7 @@ export function postInitAndCheckGenerationConfigValues(
       throw new DependencyError("top_logprobs", "logprobs", true);
     }
     // top_logprobs should be in range [0,25]
-    if (config.top_logprobs! < 0 || config.top_logprobs! > 25) {
+    if (!(config.top_logprobs! >= 0 && config.top_logprobs! <= 25)) {
       throw new RangeError("top_logprobs", 0, 25, "Got " + config.top_logprobs);
     }
   }
@@ -249,9 +254,9 @@ export function postInitAndCheckGenerationConfigValues(
 }
 
 export enum ModelType {
-  "LLM",
-  "embedding",
-  "VLM", // vision-language model
+  LLM,
+  embedding,
+  VLM, // vision-language model
 }
 
 /**
@@ -271,6 +276,8 @@ export enum ModelType {
  * @param required_features: feature needed to run this model (e.g. shader-f16).
  * @param model_type: the intended usecase for the model, if unspecified, default to LLM.
  * @param integrity: optional SRI hashes to verify downloaded artifacts. See {@link ModelIntegrity}.
+ * @param model_manifest: URL of mlc-model-manifest.json, relative to the model URL. The model
+ *   is loaded through its manifest only when this is set.
  */
 export interface ModelRecord {
   model: string;
@@ -283,6 +290,7 @@ export interface ModelRecord {
   required_features?: Array<string>;
   model_type?: ModelType;
   integrity?: ModelIntegrity;
+  model_manifest?: string;
 }
 
 /**
@@ -330,7 +338,7 @@ export function getCacheBackend(appConfig: AppConfig): CacheBackend {
  * @note The model version does not have to match the npm version, since not each npm update
  * requires an update of the model libraries.
  */
-export const modelVersion = "v0_2_84/base";
+export const modelVersion = "v0_2_87/base";
 export const modelLibURLPrefix =
   "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/";
 
@@ -757,9 +765,9 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Phi-3.5-vision-instruct-q4f16_1_cs2k-webgpu.wasm",
-      vram_required_MB: 3952.18,
-      low_resource_required: true,
+        "/Phi-3.5-vision-instruct-q4f16_1_cs4k-webgpu.wasm",
+      vram_required_MB: 4521.54,
+      low_resource_required: false,
       overrides: {
         context_window_size: 4096,
       },
@@ -772,9 +780,9 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Phi-3.5-vision-instruct-q4f32_1_cs2k-webgpu.wasm",
-      vram_required_MB: 5879.84,
-      low_resource_required: true,
+        "/Phi-3.5-vision-instruct-q4f32_1_cs4k-webgpu.wasm",
+      vram_required_MB: 7050.65,
+      low_resource_required: false,
       overrides: {
         context_window_size: 4096,
       },
@@ -1012,6 +1020,38 @@ export const prebuiltAppConfig: AppConfig = {
         context_window_size: 4096,
       },
     },
+    // Gemma-4
+    {
+      model: "https://huggingface.co/mlc-ai/gemma-4-E2B-it-q4f16_1-MLC",
+      model_id: "gemma-4-E2B-it-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/gemma-4-E2B-it-q4f16_1_cs512-webgpu.wasm",
+      model_manifest: "mlc-model-manifest.json",
+      buffer_size_required_bytes: 201326592,
+      vram_required_MB: 3387.37,
+      low_resource_required: false,
+      required_features: ["shader-f16"],
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/gemma-4-E2B-it-q4f32_1-MLC",
+      model_id: "gemma-4-E2B-it-q4f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/gemma-4-E2B-it-q4f32_1_cs512-webgpu.wasm",
+      model_manifest: "mlc-model-manifest.json",
+      buffer_size_required_bytes: 201326592,
+      vram_required_MB: 3862.72,
+      low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
     // Gemma2
     {
       model: "https://huggingface.co/mlc-ai/gemma-2-2b-it-q4f16_1-MLC",
@@ -1128,11 +1168,12 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/gemma3-1b-it-q4f16_1_cs1k-webgpu.wasm",
+        "/gemma3-1b-it-q4f16_1_cs512-webgpu.wasm",
       vram_required_MB: 711.07,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
+        sliding_window_size: -1,
       },
     },
     // OLMo2
@@ -1324,6 +1365,7 @@ export const prebuiltAppConfig: AppConfig = {
       overrides: {
         context_window_size: 4096,
         max_history_size: 1,
+        conv_config: { stop_token_ids: [248046, 248044] },
       },
     },
     {
@@ -1338,6 +1380,7 @@ export const prebuiltAppConfig: AppConfig = {
       overrides: {
         context_window_size: 4096,
         max_history_size: 1,
+        conv_config: { stop_token_ids: [248046, 248044] },
       },
     },
     {
@@ -1352,6 +1395,7 @@ export const prebuiltAppConfig: AppConfig = {
       overrides: {
         context_window_size: 4096,
         max_history_size: 1,
+        conv_config: { stop_token_ids: [248046, 248044] },
       },
     },
     {
@@ -1366,6 +1410,7 @@ export const prebuiltAppConfig: AppConfig = {
       overrides: {
         context_window_size: 4096,
         max_history_size: 1,
+        conv_config: { stop_token_ids: [248046, 248044] },
       },
     },
     {
@@ -1380,6 +1425,7 @@ export const prebuiltAppConfig: AppConfig = {
       overrides: {
         context_window_size: 4096,
         max_history_size: 1,
+        conv_config: { stop_token_ids: [248046, 248044] },
       },
     },
     {
@@ -1394,6 +1440,7 @@ export const prebuiltAppConfig: AppConfig = {
       overrides: {
         context_window_size: 4096,
         max_history_size: 1,
+        conv_config: { stop_token_ids: [248046, 248044] },
       },
     },
     {
@@ -1408,6 +1455,7 @@ export const prebuiltAppConfig: AppConfig = {
       overrides: {
         context_window_size: 4096,
         max_history_size: 1,
+        conv_config: { stop_token_ids: [248046, 248044] },
       },
     },
     {
@@ -1422,6 +1470,7 @@ export const prebuiltAppConfig: AppConfig = {
       overrides: {
         context_window_size: 4096,
         max_history_size: 1,
+        conv_config: { stop_token_ids: [248046, 248044] },
       },
     },
     {
@@ -1436,6 +1485,7 @@ export const prebuiltAppConfig: AppConfig = {
       overrides: {
         context_window_size: 4096,
         max_history_size: 1,
+        conv_config: { stop_token_ids: [248046, 248044] },
       },
     },
     // Qwen-2
