@@ -914,10 +914,12 @@ export class LLMChatPipeline {
   }
 
   /**
-   * @returns Prefill tokens per second, starting from the last prefill performed.
+   * @returns Decode tokens per second, or zero when no decoding time has elapsed.
    */
   getCurRoundDecodingTokensPerSec(): number {
-    return this.curRoundDecodingTotalTokens / this.curRoundDecodingTotalTime;
+    return this.curRoundDecodingTotalTime > 0
+      ? this.curRoundDecodingTotalTokens / this.curRoundDecodingTotalTime
+      : 0;
   }
 
   /**
@@ -3133,7 +3135,7 @@ export class LLMChatPipeline {
         .empty([numSeqs], "int32", this.tvm.cpu())
         .copyFrom(sampledTokensDevice),
     );
-    if (logprobs && top_logprobs! > 0) {
+    if (logprobs) {
       this.updateLogitsOnCPU(probs);
     }
     this.tvm.endScope();
@@ -3146,9 +3148,9 @@ export class LLMChatPipeline {
       throw new Error("InternalError: failed to sample a valid token.");
     }
 
-    if (logprobs && top_logprobs! > 0) {
+    if (logprobs) {
       this.tokenLogprobArray.push(
-        this.getTokenLogprob(sampledToken, top_logprobs!),
+        this.getTokenLogprob(sampledToken, top_logprobs ?? 0),
       );
     }
 
