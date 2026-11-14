@@ -29,6 +29,11 @@ jobs:
             git merge --no-edit upstream/main
           fi
           
-          rm -f .github/workflows/build-site.yaml .github/workflows/tests.yaml
-          
+          git rm -f --ignore-unmatch .github/workflows/build-site.yaml .github/workflows/tests.yaml
+
+          if ! git diff --cached --quiet; then
+            git commit -m "Remove upstream-only workflows"
+          fi
+
           git push origin HEAD:main
+          
